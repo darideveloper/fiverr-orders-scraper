@@ -1,4 +1,5 @@
 import os
+import csv
 from datetime import datetime
 from time import sleep
 from dotenv import load_dotenv
@@ -19,6 +20,12 @@ class OrdersScraper(ChromDevWrapper):
 
         self.orders_page = f"https://www.fiverr.com/users/{FIVERR_USERNAME}/" \
             "manage_orders?source=header_nav&search_type="
+        
+        # Paths
+        self.current_folder = os.path.dirname(os.path.abspath(__file__))
+        self.project_folder = os.path.dirname(self.current_folder)
+        self.ouput_folder = os.path.join(self.project_folder, "output")
+        os.makedirs(self.ouput_folder, exist_ok=True)
             
     def __load_results__(self):
         """ Load all results from the page """
@@ -108,6 +115,8 @@ class OrdersScraper(ChromDevWrapper):
         
         # Clean row_data
         row_data["total"] = self.__get_clean_price__(row_data["total"])
+        if not row_data["stars"]:
+            row_data["stars"] = 0
         
         # Convert date
         row_data["date_end"] = self.__get_clean_date__(row_data["date_end"])
@@ -151,7 +160,7 @@ class OrdersScraper(ChromDevWrapper):
                 "details": str,
                 "description": str,
                 "includes": str,
-                "expected_delivery": int
+                "expected_delivery_days": int
             }
         """
         
@@ -159,7 +168,7 @@ class OrdersScraper(ChromDevWrapper):
             "show_details_btn": '.activity-collapsible-title-wrapper',
             "description": '.floating-activities-block p + p',
             "includes": '.floating-activities-block ul > li',
-            "expected_delivery": '.floating-activities-block div:nth-child(3) > p',
+            "expected_delivery_days": '.floating-activities-block div:nth-child(3) > p',
             "date_ordered": '.floating-activities-block div + p'
         }
         
@@ -171,12 +180,12 @@ class OrdersScraper(ChromDevWrapper):
         # Get data
         description = self.get_text(selectors["description"])
         includes = self.get_texts(selectors["includes"])
-        expected_delivery = self.get_text(selectors["expected_delivery"]).lower()
+        expected_delivery_days = self.get_text(selectors["expected_delivery_days"]).lower()
         date_ordered = self.get_text(selectors["date_ordered"])
         
         # Clean data
-        expected_delivery = expected_delivery.replace("days", "").replace("day", "").strip()
-        expected_delivery = int(expected_delivery)
+        expected_delivery_days = expected_delivery_days.replace("days", "").replace("day", "").strip()
+        expected_delivery_days = int(expected_delivery_days)
         date_ordered = date_ordered.replace("Date ordered ", "")
         
         # Convert datetimes
@@ -187,11 +196,11 @@ class OrdersScraper(ChromDevWrapper):
         return {
             "description": description,
             "includes": " | ".join(includes),
-            "expected_delivery": expected_delivery,
+            "expected_delivery_days": expected_delivery_days,
             "date_ordered": date_ordered
         }
     
-    def get_orders(self, order_type: str) -> list:
+    def extract_orders(self, order_type: str) -> list:
         """ Get data from done orders
         
         Args:
@@ -218,6 +227,9 @@ class OrdersScraper(ChromDevWrapper):
         
         print("Getting done orders...")
         
+        csv_filename = f"{order_type}_orders.csv"
+        csv_path = os.path.join(self.ouput_folder, csv_filename) 
+        
         selectors = {
             "row": ".table > div",
             "general": {
@@ -226,7 +238,7 @@ class OrdersScraper(ChromDevWrapper):
                 "order_link": '.gig-name > a',
                 "date_end": '.delivered-at',
                 "total": '.total',
-                "stars": '.review   .order-review-star',
+                "stars": '.review .order-review-star',
                 "status": '.status'
             },
             "extra": {
@@ -277,11 +289,32 @@ class OrdersScraper(ChromDevWrapper):
         
         # Extract details from each order
         for row_data in rows_data:
+            
+            # Logs
             order_url = row_data["order_link"]
             order_index = rows_data.index(row_data) + 1
             counter = f"({order_index} / {len(rows_data)})"
             print(f"Getting details from order {counter}: {order_url}...")
+            
+            # Extract data
             order_details = self.__get_order_details__(order_url)
             row_data.update(order_details)
+            
+            # Short by keys
+            row_data = {key: row_data[key] for key in sorted(row_data)}
+            row_values = list(row_data.values())
+
+            # Write data in csv
+            with open(csv_path, "a", newline="", encoding="utf-8") as file:
+                
+                csv_writer = csv.writer(file)
+                
+                # Write header if its first row
+                if order_index == 1:
+                    header = list(row_data.keys())
+                    csv_writer.writerow(header)
+                
+                # Write row
+                csv_writer.writerow(row_values)            
         
-        return rows_data
+        print(f"Data saved in {csv_path}\n")

@@ -65,7 +65,8 @@ class OrdersScraper(ChromDevWrapper):
         return float(price)
     
     def __get_clean_date__(self, text: str) -> str:
-        """ Clean date from text with the formats: "Jan 09", "Dec 10, 2020", "Apr 8, 2024, 2:14 PM"
+        """ Clean date from text with the formats:
+        "Jan 09", "Dec 10, 2020", "Apr 8, 2024, 2:14 PM"
 
         Args:
             text (str): Date in text format
@@ -75,8 +76,6 @@ class OrdersScraper(ChromDevWrapper):
         """
         
         # Convert date to datetime
-        # date format 1: Jan 09
-        # date format 2: Dec 10, 2020
         date_str = text
         date_parts = date_str.split(",")
         if len(date_parts) == 1:
@@ -90,7 +89,7 @@ class OrdersScraper(ChromDevWrapper):
         return date_str
     
     def __get_order_row_general__(self, selector_row: int,
-                                        selectors: dict) -> dict:
+                                  selectors: dict) -> dict:
         """ Get general data from a row of done orders
         
         Args:
@@ -124,7 +123,7 @@ class OrdersScraper(ChromDevWrapper):
         return row_data
     
     def __get_order_row_extra__(self, selector_row: int,
-                                      selectors: dict, last_row: dict):
+                                selectors: dict, last_row: dict):
         """ Add extra data from a row to the last done order
         
         Args:
@@ -160,7 +159,7 @@ class OrdersScraper(ChromDevWrapper):
                 "details": str,
                 "description": str,
                 "includes": str,
-                "expected_delivery_days": int
+                "expected_days": int
             }
         """
         
@@ -168,7 +167,7 @@ class OrdersScraper(ChromDevWrapper):
             "show_details_btn": '.activity-collapsible-title-wrapper',
             "description": '.floating-activities-block p + p',
             "includes": '.floating-activities-block ul > li',
-            "expected_delivery_days": '.floating-activities-block div:nth-child(3) > p',
+            "expected_days": '.floating-activities-block div:nth-child(3) > p',
             "date_ordered": '.floating-activities-block div + p'
         }
         
@@ -180,13 +179,15 @@ class OrdersScraper(ChromDevWrapper):
         # Get data
         description = self.get_text(selectors["description"])
         includes = self.get_texts(selectors["includes"])
-        expected_delivery_days = self.get_text(selectors["expected_delivery_days"]).lower()
+        expected_days = self.get_text(selectors["expected_days"])
         date_ordered = self.get_text(selectors["date_ordered"])
         
         # Clean data
-        expected_delivery_days = expected_delivery_days.replace("days", "").replace("day", "").strip()
-        expected_delivery_days = int(expected_delivery_days)
+        expected_days = expected_days.lower()
+        expected_days = expected_days.replace("days", "").replace("day", "").strip()
+        expected_days = int(expected_days)
         date_ordered = date_ordered.replace("Date ordered ", "")
+        description = description.replace("\n", " ").replace(",", " ")
         
         # Convert datetimes
         date_ordered = self.__get_clean_date__(date_ordered)
@@ -196,7 +197,7 @@ class OrdersScraper(ChromDevWrapper):
         return {
             "description": description,
             "includes": " | ".join(includes),
-            "expected_delivery_days": expected_delivery_days,
+            "expected_days": expected_days,
             "date_ordered": date_ordered
         }
     
@@ -228,7 +229,7 @@ class OrdersScraper(ChromDevWrapper):
         print("Getting done orders...")
         
         csv_filename = f"{order_type}_orders.csv"
-        csv_path = os.path.join(self.ouput_folder, csv_filename) 
+        csv_path = os.path.join(self.ouput_folder, csv_filename)
         
         selectors = {
             "row": ".table > div",
@@ -278,6 +279,8 @@ class OrdersScraper(ChromDevWrapper):
                     selectors["general"]
                 )
                 
+                # TODO: skip already saved orders
+                
                 # Add extrad default data
                 row_data["extras_amount"] = 0
                 row_data["extras_price"] = 0
@@ -315,6 +318,6 @@ class OrdersScraper(ChromDevWrapper):
                     csv_writer.writerow(header)
                 
                 # Write row
-                csv_writer.writerow(row_values)            
+                csv_writer.writerow(row_values)
         
         print(f"Data saved in {csv_path}\n")

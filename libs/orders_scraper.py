@@ -114,8 +114,6 @@ class OrdersScraper(ChromDevWrapper):
         
         # Clean row_data
         row_data["total"] = self.__get_clean_price__(row_data["total"])
-        if not row_data["stars"]:
-            row_data["stars"] = 0
         
         # Convert date
         row_data["date_end"] = self.__get_clean_date__(row_data["date_end"])

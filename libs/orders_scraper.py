@@ -116,7 +116,8 @@ class OrdersScraper(ChromDevWrapper):
         row_data["total"] = self.__get_clean_price__(row_data["total"])
         
         # Convert date
-        row_data["date_end"] = self.__get_clean_date__(row_data["date_end"])
+        if row_data["date_end"]:
+            row_data["date_end"] = self.__get_clean_date__(row_data["date_end"])
         
         return row_data
     
@@ -224,7 +225,7 @@ class OrdersScraper(ChromDevWrapper):
         
         """
         
-        print("Getting done orders...")
+        print(f"Getting {order_type} orders...")
         
         csv_filename = f"{order_type}_orders.csv"
         csv_path = os.path.join(self.ouput_folder, csv_filename)

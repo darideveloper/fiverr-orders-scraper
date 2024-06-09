@@ -186,7 +186,7 @@ class OrdersScraper(ChromDevWrapper):
         expected_days = expected_days.replace("days", "").replace("day", "").strip()
         expected_days = int(expected_days)
         date_ordered = date_ordered.replace("Date ordered ", "")
-        description = description.replace("\n", " ").replace(",", " ")
+        description = description.replace("\r", " ").replace("\n", " ").replace(",", " ")
         
         # Convert datetimes
         date_ordered = self.__get_clean_date__(date_ordered)
